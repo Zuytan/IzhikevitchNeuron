@@ -1,4 +1,4 @@
-# Izhikevitch model :
+# Izhikevich model :
 # v' = 0.04v² + 5v + 140 - u + I
 # u' = a(bv-u)
 # if v >= 30mv => v <- c
@@ -18,7 +18,9 @@ def membranePotential(v, u, i):
     i: double
         Current input value of the neuron
     """
-    return 0.04 * pow(v, 2) + 5*v+140-u+i
+    membPot = 0.04 * pow(v, 2) + 5 * v + 140 - u + i
+
+    return membPot
 
 
 def membraneRecovery(a, b, v, u):
@@ -40,9 +42,9 @@ def membraneRecovery(a, b, v, u):
     return a*(b*v-u)
 
 
-class IzhikevitchNeuron:
+class IzhikevichNeuron:
     """
-    A class used to represent an Izhikevitch neuron
+    A class used to represent an Izhikevich neuron
 
     ...
 
@@ -71,7 +73,7 @@ class IzhikevitchNeuron:
 
     def __init__(self, a, b, c, d):
         """
-        Constructor that create an Izhikevitch neuron from datas given in parameters
+        Constructor that create an Izhikevich neuron from datas given in parameters
 
         Parameters:
         -----------
@@ -89,8 +91,9 @@ class IzhikevitchNeuron:
         self.__b = b
         self.__c = c
         self.__d = d
-        self.__u = 0
-        self.__v = 0
+        self.__u = d
+        self.__v = c
+        self.__fired = 0
         self.threshold = 30
 
     def __rungeKutta(self, i, dt):
@@ -109,26 +112,26 @@ class IzhikevitchNeuron:
         newU = self.__u
         dv = membranePotential(self.__v, self.__u, i)
         k1 = dv * 2 * dt
-        dv = membranePotential(self.__v + 0.5 * k1, self.__u, i)*dt
+        dv = membranePotential(self.__v + 0.5 * k1, self.__u, i)*dt*0.5
         k2 = dv * 2 * dt
-        dv = membranePotential(self.__v + 0.5 * k2, self.__u, i)*dt
+        dv = membranePotential(self.__v + 0.5 * k2, self.__u, i)*dt*0.5
         k3 = dv * 2 * dt
-        dv = membranePotential(self.__v + k3, self.__u, i)*dt
+        dv = membranePotential(self.__v + 0.5*k3, self.__u, i)*dt*0.5
         k4 = dv * 2 * dt
         newV += (k1 + 2*k2 + 2*k3 + k4)/6
 
         du = membraneRecovery(self.__a, self.__b, self.__v, self.__u)
         k1 = du * 2 * dt
         du = membraneRecovery(self.__a, self.__b,
-                              self.__v, self.__u + 0.5 * k1)*dt
+                              self.__v, self.__u + 0.5 * k1)*dt*0.5
         k2 = du * 2 * dt
         du = membraneRecovery(self.__a, self.__b,
-                              self.__v, self.__u + 0.5 * k2)*dt
+                              self.__v, self.__u + 0.5 * k2)*dt*0.5
         k3 = du * 2 * dt
-        du = membraneRecovery(self.__a, self.__b, self.__v, self.__u * k3)*dt
+        du = membraneRecovery(self.__a, self.__b,
+                              self.__v, self.__u + 0.5*k3)*dt*0.5
         k4 = du * 2 * dt
         newU += (k1 + 2*k2 + 2*k3 + k4)/6
-
         return newU, newV
 
     def process(self, i, dt):
@@ -144,9 +147,18 @@ class IzhikevitchNeuron:
 
         """
         newU, newV = self.__rungeKutta(i, dt)
+        fired = 0
         if(newV >= self.threshold):
             newV = self.__c
             newU += self.__d
+            fired = 1
         self.__v = newV
         self.__u = newU
+        self.__fired = fired
+        return self.__v, self.__u,
+
+    def getV(self):
         return self.__v
+
+    def getFired(self):
+        return self.__fired
